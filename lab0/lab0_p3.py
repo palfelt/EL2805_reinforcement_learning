@@ -17,6 +17,8 @@
 # gym for the Reinforcement Learning environment
 import numpy as np
 import gym
+from collections import deque
+import random
 
 ### CREATE RL ENVIRONMENT ###
 env = gym.make('CartPole-v0')        # Create a CartPole environment
@@ -26,6 +28,8 @@ m = env.action_space.n               # Number of actions
 ### PLAY ENVIRONMENT ###
 # The next while loop plays 5 episode of the environment
 for episode in range(5):
+    buffer = []
+
     state = env.reset()                  # Reset environment, returns initial
                                          # state
     done = False                         # Boolean variable used to indicate if
@@ -38,13 +42,27 @@ for episode in range(5):
         action  = np.random.randint(m)   # Pick a random integer between
                                          # [0, m-1]
 
-
         # The next line takes permits you to take an action in the RL environment
         # env.step(action) returns 4 variables:
         # (1) next state; (2) reward; (3) done variable; (4) additional stuff
         next_state, reward, done, _ = env.step(action)
 
+        buffer.append((state, action, reward, next_state, done))
+
+        if len(buffer) > 10:
+            buffer = deque(buffer)
+
         state = next_state
 
 # Close all the windows
 env.close()
+
+def rnd_samples(buffer, N=5):
+    return random.sample(buffer, k=N)
+
+# class neural_network():
+#     def __init__(self, state_dimensionality):
+#         self.input_size = state_dimensionality
+
+
+
