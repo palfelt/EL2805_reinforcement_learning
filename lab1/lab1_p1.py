@@ -1,5 +1,5 @@
 import numpy as np
-import minotaur_maze as mz 
+import minotaur_maze_VI as mz 
 
 # Description of the maze as a numpy array
 maze = np.array([
@@ -35,22 +35,22 @@ env = mz.Maze(maze)
 # # Show the shortest path 
 # mz.animate_solution(maze, path)
 
-method = 'DynProg';
-start  = (0,0,6,5);
-prob = np.zeros(shape=30)
-n_sim = 50
-for T in range(30, 31):
-    print("T: " + str(T))
-    count = 0
-    V, policy= mz.dynamic_programming(env, T);
-    for i in range(n_sim):
-        path = env.simulate(start, policy, method);
-        if path[-1][0:2] == (6, 5):
-            count += 1
-    prob[T] = count / n_sim
-    print(prob[T])
+# method = 'DynProg';
+# start  = (0,0,6,5);
+# prob = np.zeros(shape=30)
+# n_sim = 1000000
+# for T in range(15, 24):
+#     print("T: " + str(T))
+#     count = 0
+#     V, policy= mz.dynamic_programming(env, T);
+#     for i in range(n_sim):
+#         path = env.simulate(start, policy, method);
+#         if path[-1][0:2] == (6, 5):
+#             count += 1
+#     prob[T] = count / n_sim
+#     print(prob[T])
 
-np.savetxt('exit_prob.txt', prob)
+# np.savetxt('exit_prob.txt', prob)
 
 
 # # value iteration:
@@ -64,5 +64,13 @@ np.savetxt('exit_prob.txt', prob)
 #         break
 #     print(sample)
 
-    
 
+# Discount Factor 
+gamma   = 0.95; 
+# Accuracy treshold 
+epsilon = 0.0001;
+V, policy = mz.value_iteration(env, gamma, epsilon)
+
+method = 'ValIter';
+start  = (0,0,6,5,1);
+path = env.simulate(start, policy, method)
