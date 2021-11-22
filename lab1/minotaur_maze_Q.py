@@ -207,54 +207,6 @@ class Maze:
             raise NameError(error);
 
         path = list();
-        if method == 'DynProg':
-            # Deduce the horizon from the policy shape
-            horizon = policy.shape[1];
-            # Initialize current state and time
-            t = 0;
-            s = self.map[start];
-            # Add the starting position in the maze to the path
-            path.append(start);
-            while t < horizon-1:
-                # Move to next state given the policy and the current state
-                next_s = self.move(s,policy[s,t]);
-                # Add the position in the maze corresponding to the next state
-                # to the path
-                path.append(self.states[next_s])
-                # Update time and state for next iteration
-                t +=1;
-                s = next_s;
-        if method == 'ValIter':
-            # Initialize current state, next state and time
-            t = 1;
-            s = self.map[start];
-            # Add the starting position in the maze to the path
-            path.append(start);
-            # Move to next state given the policy and the current state
-            next_s = self.move(s,policy[s]);
-            # Add the position in the maze corresponding to the next state
-            # to the path
-            path.append(self.states[next_s]);
-            # Loop while state is not the goal state, caught or dead
-            exit_maze = self.states[s][0:2] == (6, 5)
-            caught = self.states[s][0:2] == self.states[next_s][2:4]
-            dead = self.states[s][-1] == 0
-            while not exit_maze and not caught and not dead:
-
-                # Update state
-                s = next_s;
-                # Move to next state given the policy and the current state
-                next_s = self.move(s,policy[s]);
-                # Add the position in the maze corresponding to the next state
-                # to the path
-                path.append(self.states[next_s])
-                # Update time and state for next iteration
-                t +=1;
-
-                exit_maze = self.states[s][0:2] == (6, 5)
-                caught = self.states[s][0:2] == self.states[s][2:4]
-                dead = self.states[s][-1] == 0
-                
 
         if method == 'Q-learning':
             # Initialize current state, next state and time
@@ -283,9 +235,9 @@ class Maze:
                 # Update time and state for next iteration
                 t +=1;
 
-                exit_maze = self.states[s][0:2] == (6, 5)
-                caught = self.states[s][0:2] == self.states[s][2:4]
-                dead = self.states[s][-1] == 0
+                exit_maze = self.states[next_s][0:2] == (6, 5)
+                caught = self.states[next_s][0:2] == self.states[next_s][2:4]
+                dead = self.states[next_s][-1] == 0
 
         return path
 
@@ -313,7 +265,7 @@ def q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95):
                                 dimension S*T
     """
     # The value itearation algorithm requires the knowledge of :
-    # - Transition probabilities
+
     # - Rewards
     # - State space
     # - Action space
@@ -324,34 +276,41 @@ def q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95):
     n_actions = env.n_actions
 
     # Required variables and temporary ones for the VI to run
-    Q   = np.zeros((n_states, n_actions))
+    Q = np.ones((n_states, n_actions))
     n =  np.zeros((n_states, n_actions))
 
     for epispde in range(n_episodes):
+
         s = np.random.randint(low=0, high=n_states-1)
 
         exit_maze = env.states[s][0:2] == (6, 5)
         caught = env.states[s][0:2] == env.states[s][2:4]
         dead = env.states[s][-1] == 0
 
+        t = 0
         while not exit_maze and not caught and not dead:
+            t += 1
 
             if np.random.rand() < eps:
-                a = np.random.randint(low=0, high=n_actions-1) # slect random state with probability eps
+                a = np.random.randint(low=0, high=n_actions-1) # select random state with probability eps
             else:
                 a = np.argmax(Q[s], axis=0)
 
             n[s, a] += 1
             alpha = 1 / n[s, a] ** (2 / 3)
-            next_s = env.move(s, a)
-            Q[s, a] += alpha * (r[next_s, a] + gamma * np.max(Q[next_s], axis=0) - Q[s, a])
+            next_s = env.move(s, a) 
+            Q[s, a] += alpha * (r[s, a] + gamma * np.max(Q[next_s], axis=0) - Q[s, a])
             s = next_s
 
             exit_maze = env.states[s][0:2] == (6, 5)
             caught = env.states[s][0:2] == env.states[s][2:4]
             dead = env.states[s][-1] == 0
 
-    policy = np.argmax(Q,1);  
+        # print("Exited maze: " + str(exit_maze))
+        # print("Got caught: " + str(caught))
+        # print("Died: " + str(dead))
+
+    policy = np.argmax(Q,axis=1);  
     return policy
 
 

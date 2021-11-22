@@ -208,23 +208,6 @@ class Maze:
             raise NameError(error);
 
         path = list();
-        if method == 'DynProg':
-            # Deduce the horizon from the policy shape
-            horizon = policy.shape[1];
-            # Initialize current state and time
-            t = 0;
-            s = self.map[start];
-            # Add the starting position in the maze to the path
-            path.append(start);
-            while t < horizon-1:
-                # Move to next state given the policy and the current state
-                next_s = self.__move(s,policy[s,t]);
-                # Add the position in the maze corresponding to the next state
-                # to the path
-                path.append(self.states[next_s])
-                # Update time and state for next iteration
-                t +=1;
-                s = next_s;
         if method == 'ValIter':
             # Initialize current state, next state and time
             t = 1;

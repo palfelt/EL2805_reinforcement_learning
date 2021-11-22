@@ -4,7 +4,7 @@ import time
 from IPython import display
 
 # Implemented methods
-methods = ['DynProg'];
+methods = ['SARSA'];
 
 # Some colours
 LIGHT_RED    = '#FFC4CC';
@@ -37,6 +37,7 @@ class Maze:
     GOAL_REWARD = 10
     IMPOSSIBLE_REWARD = -100
     CAUGHT_REWARD = -100
+    DEAD_REWARD = -100
 
 
     def __init__(self, maze, weights=None, random_rewards=False):
@@ -50,7 +51,7 @@ class Maze:
         self.transition_probabilities = self.__transitions();
         self.rewards                  = self.__rewards(weights=weights,
                                                 random_rewards=random_rewards);
-
+    
     def __actions(self):
         actions = dict();
         actions[self.STAY]       = (0, 0);
@@ -70,13 +71,14 @@ class Maze:
                 if self.maze[i,j] != 1:
                     for m in range(self.maze.shape[0]):
                         for n in range(self.maze.shape[1]):
-                            states[s] = (i, j, m, n);
-                            map[(i,j, m, n)] = s;
-                            s += 1;
+                            for alive in range(2):
+                                states[s] = (i, j, m, n, alive);
+                                map[(i,j, m, n, alive)] = s;
+                                s += 1;
 
         return states, map
 
-    def __move(self, state, action):
+    def move(self, state, action):
         """ Makes a step in the maze, given a current position and an action.
             If the action STAY or an inadmissible action is used, the agent stays in place.
 
@@ -106,11 +108,16 @@ class Maze:
                               (col == -1) or (col == self.maze.shape[1]) or \
                               (self.maze[row,col] == 1);
 
-        # Based on the impossiblity check return the next state.
-        if hitting_maze_walls:
-            return self.map[(self.states[state][0], self.states[state][1], minotaur_row, minotaur_col)]
+        if np.random.rand() < 1/51 or not self.states[state][-1]: # player expected to die with mean t = 30
+            next_life_status = 0
         else:
-            return self.map[(row, col, minotaur_row, minotaur_col)];
+            next_life_status = 1
+
+        # Based on the impossiblity check return the next state.
+        if hitting_maze_walls or not self.states[state][-1]: # if move in wall or dead
+            return self.map[(self.states[state][0], self.states[state][1], minotaur_row, minotaur_col, next_life_status)]
+        else:
+            return self.map[(row, col, minotaur_row, minotaur_col, next_life_status)];
 
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
@@ -125,7 +132,8 @@ class Maze:
         # are deterministic.
         for s in range(self.n_states):
             for a in range(self.n_actions):
-                next_s = self.__move(s,a);
+                
+                next_s = self.move(s,a);
 
                 minotaur_in_corner = ((self.states[next_s][2] == 0) and (self.states[next_s][3] == self.maze.shape[1] - 1)) or \
                                      ((self.states[next_s][3] == 0) and (self.states[next_s][2] == self.maze.shape[0] - 1)) or \
@@ -135,7 +143,10 @@ class Maze:
                 minotaur_in_edge = (self.states[next_s][2] == 0) or (self.states[next_s][2] == self.maze.shape[0] - 1) or \
                                    (self.states[next_s][3] == 0) or (self.states[next_s][3] == self.maze.shape[1] - 1)
 
-                if minotaur_in_corner:
+
+                if self.states[s][-1] == 0 and a != 0:
+                    pass
+                elif minotaur_in_corner:
                     transition_probabilities[next_s, s, a] = 0.5;
                 elif minotaur_in_edge:
                     transition_probabilities[next_s, s, a] = 1/3;
@@ -152,16 +163,19 @@ class Maze:
         if weights is None:
             for s in range(self.n_states):
                 for a in range(self.n_actions):
-                    next_s = self.__move(s,a);
-                    # Reward for hitting a wall
+                    next_s = self.move(s,a);
+                    # Reward for being dead
                     s == next_s
-                    if self.states[s][0:2] == self.states[next_s][0:2] and a != self.STAY:
+                    if not self.states[next_s][-1]:
+                        rewards[s,a] = self.DEAD_REWARD
+                     # Reward for hitting a wall
+                    elif self.states[s][0:2] == self.states[next_s][0:2] and a != self.STAY:
                         rewards[s,a] = self.IMPOSSIBLE_REWARD;
                     # Reward for reaching the exit
                     elif self.states[s][0:2] == self.states[next_s][0:2] and self.maze[self.states[next_s][0:2]] == 2:
                         rewards[s,a] = self.GOAL_REWARD;
                     # Reward for being caught by minotaur
-                    elif self.states[next_s][0:2] == self.states[next_s][2:]:
+                    elif self.states[next_s][0:2] == self.states[next_s][2:4]:
                         rewards[s,a] = self.CAUGHT_REWARD;
                     # Reward for taking a step to an empty cell that is not the exit
                     else:
@@ -180,7 +194,7 @@ class Maze:
         else:
             for s in range(self.n_states):
                  for a in range(self.n_actions):
-                     next_s = self.__move(s,a);
+                     next_s = self.move(s,a);
                      i,j = self.states[next_s];
                      # Simply put the reward as the weights o the next state.
                      rewards[s,a] = weights[i][j];
@@ -193,23 +207,38 @@ class Maze:
             raise NameError(error);
 
         path = list();
-        if method == 'DynProg':
-            # Deduce the horizon from the policy shape
-            horizon = policy.shape[1];
-            # Initialize current state and time
-            t = 0;
+
+        if method == 'SARSA':
+            # Initialize current state, next state and time
+            t = 1;
             s = self.map[start];
             # Add the starting position in the maze to the path
             path.append(start);
-            while t < horizon-1:
+            # Move to next state given the policy and the current state
+            next_s = self.move(s,policy[s]);
+            # Add the position in the maze corresponding to the next state
+            # to the path
+            path.append(self.states[next_s]);
+            # Loop while state is not the goal state, caught or dead
+            exit_maze = self.states[s][0:2] == (6, 5)
+            caught = self.states[s][0:2] == self.states[next_s][2:4]
+            dead = self.states[s][-1] == 0
+            while not exit_maze and not caught and not dead:
+
+                # Update state
+                s = next_s;
                 # Move to next state given the policy and the current state
-                next_s = self.__move(s,policy[s,t]);
+                next_s = self.move(s,policy[s]);
                 # Add the position in the maze corresponding to the next state
                 # to the path
                 path.append(self.states[next_s])
                 # Update time and state for next iteration
                 t +=1;
-                s = next_s;
+
+                exit_maze = self.states[next_s][0:2] == (6, 5)
+                caught = self.states[next_s][0:2] == self.states[next_s][2:4]
+                dead = self.states[next_s][-1] == 0
+
         return path
 
 
@@ -223,52 +252,72 @@ class Maze:
         print('The rewards:')
         print(self.rewards)
 
-def dynamic_programming(env, horizon):
-    """ Solves the shortest path problem using dynamic programming
-        :input Maze env           : The maze environment in which we seek to
-                                    find the shortest path.
-        :input int horizon        : The time T up to which we solve the problem.
-        :return numpy.array V     : Optimal values for every state at every
-                                    time, dimension S*T
-        :return numpy.array policy: Optimal time-varying policy at every state,
-                                    dimension S*T
-    """
 
-    # The dynamic prgramming requires the knowledge of :
-    # - Transition probabilities
+def sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95):
+    """ Solves the shortest path problem using value iteration
+    :input Maze env           : The maze environment in which we seek to
+                                find the shortest path.
+    :input float gamma        : The discount factor.
+    :input float epsilon      : accuracy of the value iteration procedure.
+    :return numpy.array V     : Optimal values for every state at every
+                                time, dimension S*T
+    :return numpy.array policy: Optimal time-varying policy at every state,
+                                dimension S*T
+    """
+    # The value itearation algorithm requires the knowledge of :
+
     # - Rewards
     # - State space
     # - Action space
     # - The finite horizon
-    p         = env.transition_probabilities;
-    r         = env.rewards;
-    n_states  = env.n_states;
-    n_actions = env.n_actions;
-    T         = horizon;
+    p         = env.transition_probabilities
+    r         = env.rewards
+    n_states  = env.n_states
+    n_actions = env.n_actions
 
-    # The variables involved in the dynamic programming backwards recursions
-    V      = np.zeros((n_states, T+1));
-    policy = np.zeros((n_states, T+1));
-    Q      = np.zeros((n_states, n_actions));
+    # Required variables and temporary ones for the VI to run
+    Q = np.ones((n_states, n_actions))
+    n =  np.zeros((n_states, n_actions))
 
+    for epispde in range(n_episodes):
 
-    # Initialization
-    Q            = np.copy(r);
-    V[:, T]      = np.max(Q,1);
-    policy[:, T] = np.argmax(Q,1);
+        s = env.map[(0,0,6,5,1)] # unsure of the initial state
 
-    # The dynamic programming bakwards recursion
-    for t in range(T-1,-1,-1):
-        # Update the value function acccording to the bellman equation
-        for s in range(n_states):
-            for a in range(n_actions):
-                # Update of the temporary Q values
-                Q[s,a] = r[s,a] + np.dot(p[:,s,a],V[:,t+1])
-        # Update by taking the maximum Q value w.r.t the action a
-        V[:,t] = np.max(Q,1);
-        # The optimal action is the one that maximizes the Q function
-        policy[:,t] = np.argmax(Q,1);
-    return V, policy;
+        exit_maze = env.states[s][0:2] == (6, 5)
+        caught = env.states[s][0:2] == env.states[s][2:4]
+        dead = env.states[s][-1] == 0
+
+        if np.random.rand() < eps:
+            a = np.random.randint(low=0, high=n_actions-1)  # select random action with probability eps
+        else:
+            a = np.argmax(Q[s], axis=0)
+
+        t = 0
+        while not exit_maze and not caught and not dead:
+            t += 1
+
+            next_s = env.move(s, a) 
+            if np.random.rand() < eps:
+                next_a = np.random.randint(low=0, high=n_actions-1)
+            else:
+                next_a = np.argmax(Q[next_s], axis=0)
+
+            n[s, a] += 1
+            alpha = 1 / n[s, a] ** (2 / 3)
+            Q[s, a] += alpha * (r[s, a] + gamma * Q[next_s, next_a] - Q[s, a])
+            s = next_s
+            a = next_a
+
+            exit_maze = env.states[s][0:2] == (6, 5)
+            caught = env.states[s][0:2] == env.states[s][2:4]
+            dead = env.states[s][-1] == 0
+
+        # print("Exited maze: " + str(exit_maze))
+        # print("Got caught: " + str(caught))
+        # print("Died: " + str(dead))
+
+    policy = np.argmax(Q,axis=1);  
+    return policy
 
 
 def draw_maze(maze):
@@ -307,4 +356,3 @@ def draw_maze(maze):
     for cell in tc:
         cell.set_height(1.0/rows);
         cell.set_width(1.0/cols);
-

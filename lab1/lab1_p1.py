@@ -1,7 +1,8 @@
 import numpy as np
 #import minotaur_maze_VI as mz 
 #import minotaur_maze_DP as mz
-import minotaur_maze_Q as mz
+#import minotaur_maze_Q as mz
+import minotaur_maze_SARSA as mz
 
 # Description of the maze as a numpy array
 maze = np.array([
@@ -57,20 +58,39 @@ env = mz.Maze(maze)
 # prob = n_exits / i
 # print("Probability of exiting the maze: " + str(prob))
 
-method = 'Q-learning'
+# method = 'Q-learning'
+# start  = (0,0,6,5,1)
+# n_exits = 0
+# policy = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95)
+# n_sim = 50000
+# for i in range(1, n_sim + 1):
+
+#     if i % 5000 == 0: 
+#         print('i = {}'.format(i))
+
+#     path = env.simulate(start, policy, method)
+#     if path[-1][0:2] == (6, 5): # if the player exited the maze
+#         n_exits += 1
+
+# print(path)
+# prob = n_exits / i
+# print("Probability of exiting the maze: " + str(prob))
+
+
+method = 'SARSA'
 start  = (0,0,6,5,1)
-n_sim = 100000
 n_exits = 0
-policy = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95)
-n_sim = 100000
+policy = mz.sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95)
+n_sim = 50000
 for i in range(1, n_sim + 1):
 
-    if i % 10000 == 0: 
+    if i % 5000 == 0: 
         print('i = {}'.format(i))
 
     path = env.simulate(start, policy, method)
     if path[-1][0:2] == (6, 5): # if the player exited the maze
         n_exits += 1
 
+print(path)
 prob = n_exits / i
 print("Probability of exiting the maze: " + str(prob))
