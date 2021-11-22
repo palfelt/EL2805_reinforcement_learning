@@ -1,5 +1,7 @@
 import numpy as np
-import minotaur_maze_VI as mz 
+#import minotaur_maze_VI as mz 
+#import minotaur_maze_DP as mz
+import minotaur_maze_Q as mz
 
 # Description of the maze as a numpy array
 maze = np.array([
@@ -11,35 +13,15 @@ maze = np.array([
     [0, 1, 1, 1, 1, 1, 1, 0],
     [0, 0, 0, 0, 1, 2, 0, 0]
 ])
-# with the convention 
-# 0 = empty cell
-# 1 = obstacle
-# 2 = exit of the Maze
-
-# mz.draw_maze(maze)
 
 # Create an environment maze
 env = mz.Maze(maze)
-# env.show()
-
-# # Finite horizon
-# horizon = 20
-# # Solve the MDP problem with dynamic programming 
-# V, policy= mz.dynamic_programming(env,horizon);
-
-# # Simulate the shortest path starting from position A
-# method = 'DynProg';
-# start  = (0,0,6,5);
-# path = env.simulate(start, policy, method);
-
-# # Show the shortest path 
-# mz.animate_solution(maze, path)
 
 # method = 'DynProg';
 # start  = (0,0,6,5);
-# prob = np.zeros(shape=30)
-# n_sim = 1000000
-# for T in range(15, 24):
+# prob = np.zeros(shape=31)
+# n_sim = 10000
+# for T in range(15, 31):
 #     print("T: " + str(T))
 #     count = 0
 #     V, policy= mz.dynamic_programming(env, T);
@@ -50,27 +32,45 @@ env = mz.Maze(maze)
 #     prob[T] = count / n_sim
 #     print(prob[T])
 
-# np.savetxt('exit_prob.txt', prob)
+# np.savetxt('exit_prob_caught_10_goal0.txt', prob)
 
+# --- Value iteration ---
 
-# # value iteration:
-# p = 1/31 # mean to die at T = 30
-# sum = 0
-# for k in range(100):
-#     geometric_prob = (1 - p) ** (k - 1) * p
-#     sample = np.random.rand()
-#     if sample <= geometric_prob:
-#         T = k
-#         break
-#     print(sample)
+# method = 'ValIter'
+# # Discount Factor
+# gamma   = 0.95; 
+# # Accuracy treshold 
+# epsilon = 0.0001;
+# start  = (0,0,6,5,1)
+# n_sim = 100000
+# n_exits = 0
+# V, policy = mz.value_iteration(env, gamma, epsilon)
+# for i in range(1, n_sim + 1):
 
+#     if i % 10000 == 0: 
+#         print('i = {}'.format(i))
 
-# Discount Factor 
-gamma   = 0.95; 
-# Accuracy treshold 
-epsilon = 0.0001;
-V, policy = mz.value_iteration(env, gamma, epsilon)
+#     path = env.simulate(start, policy, method)
+#     if path[-1][0:2] == (6, 5): # if the player exited the maze
+#         n_exits += 1
 
-method = 'ValIter';
-start  = (0,0,6,5,1);
-path = env.simulate(start, policy, method)
+# prob = n_exits / i
+# print("Probability of exiting the maze: " + str(prob))
+
+method = 'Q-learning'
+start  = (0,0,6,5,1)
+n_sim = 100000
+n_exits = 0
+policy = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95)
+n_sim = 100000
+for i in range(1, n_sim + 1):
+
+    if i % 10000 == 0: 
+        print('i = {}'.format(i))
+
+    path = env.simulate(start, policy, method)
+    if path[-1][0:2] == (6, 5): # if the player exited the maze
+        n_exits += 1
+
+prob = n_exits / i
+print("Probability of exiting the maze: " + str(prob))
