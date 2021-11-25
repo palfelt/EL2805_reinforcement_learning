@@ -25,32 +25,45 @@ env = mz.Maze(maze)
 # # Finite horizon
 # horizon = 20
 # # Solve the MDP problem with dynamic programming 
-# V, policy= mz.dynamic_programming(env,horizon);
+# V, policy, map= mz.dynamic_programming(env,horizon);
+# # print(policy[:,0])
 
-# # Simulate the shortest path starting from position A
+# show_action = dict()
+# val = list()
+# k = 0
+# for i in range(maze.shape[0]):
+#     for j in range(maze.shape[1]):
+#         if maze[i,j] != 1:
+#         # show_action[k] = (i, j, 6, 5)
+#             val.append(map[(i,j, 6, 5)]) 
+# print(policy[val, 0])
+
+# Simulate the shortest path starting from position A
 # method = 'DynProg';
 # start  = (0,0,6,5);
 # path = env.simulate(start, policy, method);
 
-# # Show the shortest path 
+# Show the shortest path 
 # mz.animate_solution(maze, path)
 
 method = 'DynProg';
 start  = (0,0,6,5);
-prob = np.zeros(shape=30)
-n_sim = 50
-for T in range(30, 31):
+prob = np.zeros(shape=16)
+n_sim = 100000
+m = 0
+for T in range(15, 31):
     print("T: " + str(T))
     count = 0
-    V, policy= mz.dynamic_programming(env, T);
+    V, policy, map= mz.dynamic_programming(env, T);
     for i in range(n_sim):
         path = env.simulate(start, policy, method);
         if path[-1][0:2] == (6, 5):
             count += 1
-    prob[T] = count / n_sim
-    print(prob[T])
-
-np.savetxt('exit_prob.txt', prob)
+    prob[m] = count / n_sim
+    print(prob[m])
+    m += 1
+print(prob)
+# np.savetxt('exit_prob.txt', prob)
 
 
 # # value iteration:

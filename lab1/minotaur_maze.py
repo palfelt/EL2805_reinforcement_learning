@@ -108,7 +108,7 @@ class Maze:
 
         # Based on the impossiblity check return the next state.
         if hitting_maze_walls:
-            return state;
+            return self.map[(self.states[state][0], self.states[state][1], minotaur_row, minotaur_col)];
         else:
             return self.map[(row, col, minotaur_row, minotaur_col)];
 
@@ -270,6 +270,7 @@ def dynamic_programming(env, horizon):
     n_states  = env.n_states;
     n_actions = env.n_actions;
     T         = horizon;
+    map       = env.map;
 
     # The variables involved in the dynamic programming backwards recursions
     V      = np.zeros((n_states, T+1));
@@ -293,7 +294,7 @@ def dynamic_programming(env, horizon):
         V[:,t] = np.max(Q,1);
         # The optimal action is the one that maximizes the Q function
         policy[:,t] = np.argmax(Q,1);
-    return V, policy;
+    return V, policy, map;
 
 def value_iteration(env, gamma, epsilon):
     """ Solves the shortest path problem using value iteration
@@ -427,7 +428,7 @@ def animate_solution(maze, path):
 
     # Update the color at each frame
     for i in range(len(path)):
-        print(path)
+        # print(path)
         grid.get_celld()[(path[i][0:2])].set_facecolor(LIGHT_ORANGE)
         grid.get_celld()[(path[i][0:2])].get_text().set_text('Player')
         grid.get_celld()[(path[i][2:])].set_facecolor(LIGHT_PURPLE)
