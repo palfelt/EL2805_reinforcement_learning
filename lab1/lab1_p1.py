@@ -79,7 +79,7 @@ env = mz.Maze(maze)
 
 
 method = 'SARSA'
-start  = (0,0,6,5,1)
+start  = (0,0,6,5,1,0)
 n_exits = 0
 policy, V_episode = mz.sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95)
 plt.plot(V_episode)
