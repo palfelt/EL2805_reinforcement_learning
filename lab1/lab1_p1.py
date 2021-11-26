@@ -3,6 +3,7 @@ import numpy as np
 #import minotaur_maze_DP as mz
 #import minotaur_maze_Q as mz
 import minotaur_maze_SARSA as mz
+import matplotlib.pyplot as plt
 
 # Description of the maze as a numpy array
 maze = np.array([
@@ -80,7 +81,9 @@ env = mz.Maze(maze)
 method = 'SARSA'
 start  = (0,0,6,5,1)
 n_exits = 0
-policy = mz.sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95)
+policy, V_episode = mz.sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95)
+plt.plot(V_episode)
+plt.show()
 n_sim = 50000
 for i in range(1, n_sim + 1):
 
