@@ -1,8 +1,9 @@
+from matplotlib.patches import FancyArrow
 import numpy as np
 #import minotaur_maze_VI as mz 
 #import minotaur_maze_DP as mz
-#import minotaur_maze_Q as mz
-import minotaur_maze_SARSA as mz
+import minotaur_maze_Q as mz
+#import minotaur_maze_SARSA as mz
 import matplotlib.pyplot as plt
 
 # Description of the maze as a numpy array
@@ -59,11 +60,15 @@ env = mz.Maze(maze)
 # prob = n_exits / i
 # print("Probability of exiting the maze: " + str(prob))
 
-# method = 'Q-learning'
-# start  = (0,0,6,5,1)
+
+# method = 'SARSA'
+# start  = (0,0,6,5,1,0)
 # n_exits = 0
-# policy = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95)
-# n_sim = 50000
+# policy, V_episode = mz.sarsa(env, eps=0.1, n_episodes=50000, gamma=0.95)
+# # plt.plot(V_episode)
+# # plt.show()
+# # print(V_episode[-1])
+# n_sim = 500000
 # for i in range(1, n_sim + 1):
 
 #     if i % 5000 == 0: 
@@ -78,13 +83,20 @@ env = mz.Maze(maze)
 # print("Probability of exiting the maze: " + str(prob))
 
 
-method = 'SARSA'
+method = 'Q-learning'
 start  = (0,0,6,5,1,0)
 n_exits = 0
-policy, V_episode = mz.sarsa(env, eps=0.2, n_episodes=50000, gamma=0.95)
-plt.plot(V_episode)
-plt.show()
-n_sim = 50000
+policy, V_episode = mz.q_learning(env, eps=0.25, n_episodes=50000, gamma=0.95, alp=2/3, fac=0)
+# print(V_episode[-1])
+# policy1, V_episode1 = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95, alp=2/3, fac=1)
+# policy2, V_episode2 = mz.q_learning(env, eps=0.2, n_episodes=50000, gamma=0.95, alp=2/3, fac=4)
+# p1, = plt.plot(V_episode)
+# p2, = plt.plot(V_episode1)
+# p3, = plt.plot(V_episode2)
+# l1 = plt.legend([p1, p2, p3], ["Q = 0", "Q = 1", "Q = 4"], loc='upper right')
+# plt.gca().add_artist(l1)
+# plt.show()
+n_sim = 500000
 for i in range(1, n_sim + 1):
 
     if i % 5000 == 0: 
