@@ -14,12 +14,53 @@
 #
 
 # Load packages
+from threading import excepthook
+from typing import Deque, ForwardRef, Optional
 import numpy as np
 import gym
+from numpy.core.numeric import indices, tensordot
 import torch
+from torch._C import dtype
+import torch.nn as nn
+from torch.nn.modules import loss
+import torch.optim as optim
 import matplotlib.pyplot as plt
+from torch.nn.modules.linear import Linear
 from tqdm import trange
 from DQN_agent import RandomAgent
+from collections import deque
+
+# use the code from [Alessio Russo - alessior@kth.se] in p3, LAB0
+class ExperienceReplayBuffer(object):
+    def __init__(self, maximum_length=10000):
+        self.buffer = deque(maxlen=maximum_length)
+
+    def append(self, experience):
+        self.buffer.append(experience)
+
+    def __len__(self):
+        return len(self.buffer)
+
+    def sample_batch(self, n):
+        if n > len(self.buffer):
+            print("Too few elements in buffer")
+        batch = [self.buffer[i] for i in np.random.choice(len(self.buffer), n, replace=False)]
+
+        # return a tuple of five lists of len n
+        states, actions, rewards, next_states, dones = zip(*batch)
+        return states, actions, rewards, next_states, dones
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(input_size, 8),
+            nn.ReLU(),
+            nn.Linear(8, output_size),
+        )
+
+    def forward(self, x):
+        return self.network(x)
 
 def running_average(x, N):
     ''' Function used to compute the running average
@@ -56,6 +97,10 @@ agent = RandomAgent(n_actions)
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
+buffer = ExperienceReplayBuffer(maximum_length=10000)
+network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
+optimizer = optim.Adam(network.parameters(), lr=0.0001)
+batch_size = 10
 
 for i in EPISODES:
     # Reset enviroment data and initialize variables
@@ -64,15 +109,40 @@ for i in EPISODES:
     total_episode_reward = 0.
     t = 0
     while not done:
-        env.render()
+        # env.render()
         # Take a random action
-        action = agent.forward(state)
+        # action = agent.forward(state)
+
+        # choose action based on Q-value from NN
+        state_tensor = torch.tensor([state],
+            requires_grad=False, dtype=torch.float32)
+        action_values = network(state_tensor)
+        val, action = action_values.max(1)
+        action = action.item()
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
         next_state, reward, done, _ = env.step(action)
 
+        exp = (state, action, reward, next_state, done)
+        buffer.append(exp)
+
+        if len(buffer) >= batch_size:
+            optimizer.zero_grad()
+            states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
+            actions_values = network(
+                torch.tensor(states, requires_grad=True, dtype=torch.float32)
+            )
+            target_values = 300 * torch.ones_like(
+                actions_values, requires_grad=False, dtype=torch.float32
+            )
+
+            loss = nn.functional.mse_loss(actions_values, target_values)
+            loss.backward()
+            nn.utils.clip_grad_norm_(network.parameters(), 1.0)
+            optimizer.step()
+            
         # Update episode reward
         total_episode_reward += reward
 
