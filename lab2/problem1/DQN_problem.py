@@ -39,7 +39,7 @@ class ExperienceReplayBuffer(object):
         self.buffer.append(experience)
 
     def __len__(self):
-        return len(self.buffer)
+        return self.buffer.maxlen
 
     def sample_batch(self, n):
         if n > len(self.buffer):
@@ -90,17 +90,30 @@ episode_reward_list = []       # this list contains the total reward per episode
 episode_number_of_steps = []   # this list contains the number of steps per episode
 
 # Random agent initialization
-agent = RandomAgent(n_actions)
+rnd_agent = RandomAgent(n_actions)
 
 ### Training process
 
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
-buffer = ExperienceReplayBuffer(maximum_length=10000)
 network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
 optimizer = optim.Adam(network.parameters(), lr=0.0001)
+target_network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
+target_optimizer = optim.Adam(target_network.parameters(), lr=0.0001)
 batch_size = 10
+epsilon = 0.1
+
+### Initialization
+buffer = ExperienceReplayBuffer(maximum_length=10000)
+for i in range(len(buffer)):
+    rnd_state = env.reset()
+    rnd_action = rnd_agent.forward(rnd_state)
+    next_state, reward, done, _ = env.step(rnd_action)
+    rnd_exp = (rnd_state, rnd_action, reward, next_state, done)
+    buffer.append(rnd_exp)
+
+C = int(len(buffer) / batch_size)
 
 for i in EPISODES:
     # Reset enviroment data and initialize variables
@@ -109,16 +122,18 @@ for i in EPISODES:
     total_episode_reward = 0.
     t = 0
     while not done:
-        # env.render()
-        # Take a random action
-        # action = agent.forward(state)
 
         # choose action based on Q-value from NN
         state_tensor = torch.tensor([state],
             requires_grad=False, dtype=torch.float32)
-        action_values = network(state_tensor)
-        val, action = action_values.max(1)
-        action = action.item()
+
+        # Take action epsilon-greedily
+        if np.random.rand() < epsilon:
+            action = rnd_agent.forward(state)
+        else:
+            action_values = network(state_tensor)
+            val, action = action_values.max(1)
+            action = action.item()
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
@@ -128,27 +143,40 @@ for i in EPISODES:
         exp = (state, action, reward, next_state, done)
         buffer.append(exp)
 
-        if len(buffer) >= batch_size:
-            optimizer.zero_grad()
-            states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
-            actions_values = network(
-                torch.tensor(states, requires_grad=True, dtype=torch.float32)
-            )
-            target_values = 300 * torch.ones_like(
-                actions_values, requires_grad=False, dtype=torch.float32
-            )
+        states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
+        # print("------------------------")
+        # print(states)
+        # print(states)
+        # print("------------------------")
+        
+        # compute target values
+        next_states_tensor = torch.tensor(next_states,
+                            requires_grad=False, dtype=torch.float32)
+        states_tensor = torch.tensor(states,
+                            requires_grad=False, dtype=torch.float32)
+        action_values = target_network(next_states_tensor)
+        target_q_values, ind = action_values.max(1)
+        y = torch.reshape(torch.tensor(rewards, requires_grad=True, dtype=torch.float32) + discount_factor * (1 - torch.tensor(dones, requires_grad=True, dtype=torch.float32)) * target_q_values, (batch_size, 1))
+        # update main network parameters
+        optimizer.zero_grad()
+        out = network(states_tensor)
+        out_i = out[torch.arange(out.size(dim=0)), list(actions)]
+        loss = nn.functional.mse_loss(out_i, y.flatten())
+        loss.backward()
+        nn.utils.clip_grad_norm_(network.parameters(), 1.0)
+        optimizer.step()
 
-            loss = nn.functional.mse_loss(actions_values, target_values)
-            loss.backward()
-            nn.utils.clip_grad_norm_(network.parameters(), 1.0)
-            optimizer.step()
+        # if C has passed...
+        if (t % C) == 0:
+            target_network.load_state_dict(network.state_dict())
+
             
         # Update episode reward
         total_episode_reward += reward
 
         # Update state for next iteration
         state = next_state
-        t+= 1
+        t += 1
 
     # Append episode reward and total number of steps
     episode_reward_list.append(total_episode_reward)
