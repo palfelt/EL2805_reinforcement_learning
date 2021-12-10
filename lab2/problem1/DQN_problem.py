@@ -83,7 +83,7 @@ env.reset()
 
 # Parameters
 N_episodes = 500                             # Number of episodes
-discount_factor = 0.99                       # Value of the discount factor
+discount_factor = 0.95                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -100,17 +100,19 @@ rnd_agent = RandomAgent(n_actions)
 
 # trange is an alternative to range in python, from the tqdm library
 # It shows a nice progression bar that you can update with useful information
+cdevice = torch.device("cpu" if torch.cuda.is_available() else "cpu")
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
+network.to(cdevice)
 optimizer = optim.Adam(network.parameters(), lr=1e-4)
 target_network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
-target_optimizer = optim.Adam(target_network.parameters(), lr=1e-4)
-batch_size = 60
+target_network.to(cdevice)
+batch_size = 64
 epsilon_max = 0.99
-epsilon_min = 0.05 
+epsilon_min = 0.1
 
 ### Initialization
-buffer = ExperienceReplayBuffer(maximum_length=20000)
+buffer = ExperienceReplayBuffer(maximum_length=15000)
 for i in range(len(buffer)):
     rnd_state = env.reset()
     rnd_action = rnd_agent.forward(rnd_state)
@@ -131,9 +133,8 @@ for i in EPISODES:
     epsilon = np.max([epsilon_min, epsilon_max - (epsilon_max - epsilon_min) * (i - 1) / (0.9 * N_episodes)])
     while not done:
 
-        # choose action based on Q-value from NN
         state_tensor = torch.tensor(state,
-            requires_grad=False, dtype=torch.float32)
+            requires_grad=True, dtype=torch.float32, device=cdevice)
 
         # Take action epsilon-greedily
         if np.random.rand() < epsilon:
@@ -143,35 +144,34 @@ for i in EPISODES:
             val, action = state_action_values.max(0)
             action = action.item()
 
-        # Get next state and reward.  The done variable
-        # will be True if you reached the goal position,
-        # False otherwise
+        # Get next state, reward and done, append experience to buffer
         next_state, reward, done, _ = env.step(action)
         exp = (state, action, reward, next_state, done)
         buffer.append(exp)
 
+        # sample batch_size experiences from the buffer randomly
         states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
   
         # compute target values
         next_states_tensor = torch.tensor(next_states,
-                            requires_grad=False, dtype=torch.float32)
+                            requires_grad=True, dtype=torch.float32, device=cdevice)
         states_tensor = torch.tensor(states,
-                            requires_grad=False, dtype=torch.float32)
+                            requires_grad=True, dtype=torch.float32, device=cdevice)
         next_state_values, _ = target_network(next_states_tensor).max(1)
+        y = torch.tensor(rewards, requires_grad=True, dtype=torch.float32, device=cdevice) + discount_factor * (1 - torch.tensor(dones, requires_grad=True, dtype=torch.float32, device=cdevice)) * next_state_values
 
-        y = torch.reshape(torch.tensor(rewards, requires_grad=True, dtype=torch.float32) + discount_factor * (1 - torch.tensor(dones, requires_grad=True, dtype=torch.float32)) * next_state_values, (batch_size, 1))
         # update main network parameters
         optimizer.zero_grad()
-        state_action_values = network(states_tensor)[torch.arange(batch_size), list(actions)]
-        loss = nn.functional.mse_loss(state_action_values, y.flatten())
+        state_action_values = network(states_tensor)[torch.arange(batch_size), list(actions)] # forward pass
+        loss = nn.functional.mse_loss(state_action_values, y)
         loss.backward()
         nn.utils.clip_grad_norm_(network.parameters(), 1.0)
         optimizer.step()
 
-        # if C has passed...
+        # if C steps has passed, set target network equal to main network
         if (t % C) == 0:
             target_network.load_state_dict(network.state_dict())
-
+            
         # Update episode reward
         total_episode_reward += reward
 
@@ -195,8 +195,8 @@ for i in EPISODES:
         running_average(episode_reward_list, n_ep_running_average)[-1],
         running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
-    if running_average(episode_reward_list, n_ep_running_average)[-1] > 150:
-        break
+    # if running_average(episode_reward_list, n_ep_running_average)[-1] > 150:
+    #     break
 
 torch.save(network, 'neural-network-1.pt')
 
