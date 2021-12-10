@@ -44,7 +44,10 @@ class ExperienceReplayBuffer(object):
     def sample_batch(self, n):
         if n > len(self.buffer):
             print("Too few elements in buffer")
-        batch = [self.buffer[i] for i in np.random.choice(len(self.buffer), n, replace=False)]
+        batch = [self.buffer[i] for i in np.random.choice(len(self.buffer), n - 1, replace=False)]
+
+        #Combined experience replay
+        batch.append(self.buffer[-1])
 
         # return a tuple of five lists of len n
         states, actions, rewards, next_states, dones = zip(*batch)
@@ -54,14 +57,27 @@ class NeuralNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_size, 8),
+            nn.Linear(input_size, 16),
             nn.ReLU(),
-            nn.Linear(8, 32),
+            nn.Linear(16, 32),
             nn.ReLU(),
             nn.Linear(32, 64),
             nn.ReLU(),
             nn.Linear(64, output_size),
         )
+
+        # self.value = nn.Sequential(
+        #     nn.Linear(input_size, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 1)
+        # )
+
+        # self.advantage = nn.Sequential(
+        #     nn.Linear(input_size, 64),
+        #     nn.ReLU(),
+        #     nn.Linear(64, output_size)
+        # )
+
 
     def forward(self, x):
         return self.network(x)
@@ -83,7 +99,7 @@ env.reset()
 
 # Parameters
 N_episodes = 500                             # Number of episodes
-discount_factor = 0.95                       # Value of the discount factor
+discount_factor = 0.995                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -198,7 +214,7 @@ for i in EPISODES:
     # if running_average(episode_reward_list, n_ep_running_average)[-1] > 150:
     #     break
 
-torch.save(network, 'neural-network-1.pt')
+torch.save(network, 'parameters.pth')
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
