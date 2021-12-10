@@ -48,7 +48,7 @@ class ExperienceReplayBuffer(object):
 
         # return a tuple of five lists of len n
         states, actions, rewards, next_states, dones = zip(*batch)
-        return states, actions, rewards, next_states, dones
+        return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
 
 class NeuralNetwork(nn.Module):
     def __init__(self, input_size, output_size):
@@ -56,7 +56,11 @@ class NeuralNetwork(nn.Module):
         self.network = nn.Sequential(
             nn.Linear(input_size, 8),
             nn.ReLU(),
-            nn.Linear(8, output_size),
+            nn.Linear(8, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_size),
         )
 
     def forward(self, x):
@@ -78,8 +82,8 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 100                             # Number of episodes
-discount_factor = 0.95                       # Value of the discount factor
+N_episodes = 500                             # Number of episodes
+discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -98,14 +102,15 @@ rnd_agent = RandomAgent(n_actions)
 # It shows a nice progression bar that you can update with useful information
 EPISODES = trange(N_episodes, desc='Episode: ', leave=True)
 network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
-optimizer = optim.Adam(network.parameters(), lr=0.0001)
+optimizer = optim.Adam(network.parameters(), lr=1e-4)
 target_network = NeuralNetwork(input_size=dim_state, output_size=n_actions)
-target_optimizer = optim.Adam(target_network.parameters(), lr=0.0001)
-batch_size = 10
-epsilon = 0.1
+target_optimizer = optim.Adam(target_network.parameters(), lr=1e-4)
+batch_size = 60
+epsilon_max = 0.99
+epsilon_min = 0.05 
 
 ### Initialization
-buffer = ExperienceReplayBuffer(maximum_length=10000)
+buffer = ExperienceReplayBuffer(maximum_length=20000)
 for i in range(len(buffer)):
     rnd_state = env.reset()
     rnd_action = rnd_agent.forward(rnd_state)
@@ -121,47 +126,44 @@ for i in EPISODES:
     state = env.reset()
     total_episode_reward = 0.
     t = 0
+
+    # epsilon decay
+    epsilon = np.max([epsilon_min, epsilon_max - (epsilon_max - epsilon_min) * (i - 1) / (0.9 * N_episodes)])
     while not done:
 
         # choose action based on Q-value from NN
-        state_tensor = torch.tensor([state],
+        state_tensor = torch.tensor(state,
             requires_grad=False, dtype=torch.float32)
 
         # Take action epsilon-greedily
         if np.random.rand() < epsilon:
             action = rnd_agent.forward(state)
         else:
-            action_values = network(state_tensor)
-            val, action = action_values.max(1)
+            state_action_values = network(state_tensor)
+            val, action = state_action_values.max(0)
             action = action.item()
 
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise
         next_state, reward, done, _ = env.step(action)
-
         exp = (state, action, reward, next_state, done)
         buffer.append(exp)
 
         states, actions, rewards, next_states, dones = buffer.sample_batch(batch_size)
-        # print("------------------------")
-        # print(states)
-        # print(states)
-        # print("------------------------")
-        
+  
         # compute target values
         next_states_tensor = torch.tensor(next_states,
                             requires_grad=False, dtype=torch.float32)
         states_tensor = torch.tensor(states,
                             requires_grad=False, dtype=torch.float32)
-        action_values = target_network(next_states_tensor)
-        target_q_values, ind = action_values.max(1)
-        y = torch.reshape(torch.tensor(rewards, requires_grad=True, dtype=torch.float32) + discount_factor * (1 - torch.tensor(dones, requires_grad=True, dtype=torch.float32)) * target_q_values, (batch_size, 1))
+        next_state_values, _ = target_network(next_states_tensor).max(1)
+
+        y = torch.reshape(torch.tensor(rewards, requires_grad=True, dtype=torch.float32) + discount_factor * (1 - torch.tensor(dones, requires_grad=True, dtype=torch.float32)) * next_state_values, (batch_size, 1))
         # update main network parameters
         optimizer.zero_grad()
-        out = network(states_tensor)
-        out_i = out[torch.arange(out.size(dim=0)), list(actions)]
-        loss = nn.functional.mse_loss(out_i, y.flatten())
+        state_action_values = network(states_tensor)[torch.arange(batch_size), list(actions)]
+        loss = nn.functional.mse_loss(state_action_values, y.flatten())
         loss.backward()
         nn.utils.clip_grad_norm_(network.parameters(), 1.0)
         optimizer.step()
@@ -170,7 +172,6 @@ for i in EPISODES:
         if (t % C) == 0:
             target_network.load_state_dict(network.state_dict())
 
-            
         # Update episode reward
         total_episode_reward += reward
 
@@ -194,6 +195,10 @@ for i in EPISODES:
         running_average(episode_reward_list, n_ep_running_average)[-1],
         running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
+    if running_average(episode_reward_list, n_ep_running_average)[-1] > 150:
+        break
+
+torch.save(network, 'neural-network-1.pt')
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))
