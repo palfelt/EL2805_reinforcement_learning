@@ -57,11 +57,11 @@ class NeuralNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
         self.network = nn.Sequential(
-            nn.Linear(input_size, 16),
+            nn.Linear(input_size, 32),
             nn.ReLU(),
-            nn.Linear(16, 32),
+            nn.Linear(32, 128),
             nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, output_size),
         )
@@ -98,8 +98,8 @@ env = gym.make('LunarLander-v2')
 env.reset()
 
 # Parameters
-N_episodes = 500                             # Number of episodes
-discount_factor = 0.995                       # Value of the discount factor
+N_episodes = 700                             # Number of episodes
+discount_factor = 0.99                       # Value of the discount factor
 n_ep_running_average = 50                    # Running average of 50 episodes
 n_actions = env.action_space.n               # Number of available actions
 dim_state = len(env.observation_space.high)  # State dimensionality
@@ -211,10 +211,10 @@ for i in EPISODES:
         running_average(episode_reward_list, n_ep_running_average)[-1],
         running_average(episode_number_of_steps, n_ep_running_average)[-1]))
 
-    # if running_average(episode_reward_list, n_ep_running_average)[-1] > 150:
+    # if running_average(episode_reward_list, n_ep_running_average)[-1] > 120:
     #     break
 
-torch.save(network, 'parameters.pth')
+torch.save(network, 'neural-network-5-700epc.pt')
 
 # Plot Rewards and steps
 fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(16, 9))

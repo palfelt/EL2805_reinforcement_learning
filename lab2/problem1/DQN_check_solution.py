@@ -19,6 +19,23 @@ import gym
 import torch
 import torch.nn as nn
 from tqdm import trange
+import torch.nn as nn
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(input_size, 32),
+            nn.ReLU(),
+            nn.Linear(32, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, output_size),
+        )
+
+    def forward(self, x):
+        return self.network(x)
 
 class NeuralNetwork(nn.Module):
     def __init__(self, input_size, output_size):
@@ -49,10 +66,10 @@ def running_average(x, N):
 
 # Load model
 try:
-    model = torch.load('F:\VScode projects\EL2805_reinforcement_learning\parameters.pth')
+    model = torch.load('D:\study-R.D.Silva\EL2805 RL\EL2805_reinforcement_learning\lab2\problem1\model5-600epc.pt')
     print('Network model: {}'.format(model))
 except:
-    print('File neural-network-1.pth not found!')
+    print('File neural-network-5.pth not found!')
     exit(-1)
 
 # Import and initialize Mountain Car Environment
