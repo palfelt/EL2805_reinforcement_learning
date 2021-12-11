@@ -17,7 +17,24 @@
 import numpy as np
 import gym
 import torch
+import torch.nn as nn
 from tqdm import trange
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Linear(8, 16),
+            nn.ReLU(),
+            nn.Linear(16, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, 4),
+        )
+
+    def forward(self, x):
+        return self.network(x)
 
 def running_average(x, N):
     ''' Function used to compute the running average
@@ -32,7 +49,7 @@ def running_average(x, N):
 
 # Load model
 try:
-    model = torch.load('neural-network-1.pth')
+    model = torch.load('F:\VScode projects\EL2805_reinforcement_learning\parameters.pth')
     print('Network model: {}'.format(model))
 except:
     print('File neural-network-1.pth not found!')

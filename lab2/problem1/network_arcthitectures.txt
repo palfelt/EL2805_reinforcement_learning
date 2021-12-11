@@ -1,0 +1,123 @@
+Network runs:
+N_episodes = 500
+discount_factor = 0.95
+lr = 1e-4
+batch_size = 64
+epsilon_max = 0.99
+epsilon_min = 0.1
+linear epsilon decay
+Z = 0.9 * N_episodes
+clip = 1.0
+first layer: 8
+hidden1: 32
+hidden2: 64
+
+max. average running reward: ~70, ~136
+average total reward of 59.9 +/- 33.1
+-------------------------------------
+-||-
+discount_factor = 0.99
+first layer: 16
+
+max. average running reward: ~113
+-------------------------------------
+-||-
+w/ Combined experience replay
+discount_factor = 0.99
+first layer: 16
+
+max. average running reward: ~158
+-------------------------------------
+-||-
+w/ Combined experience replay
+discount_factor = 0.99
+first layer: 16
+lr = 0.5e-4
+N_episodes = 100
+
+max. average running reward: ~80
+-------------------------------------
+-||-
+discount_factor = 0.995
+first layer: 16
+
+max. average running reward: ~176
+#1 PASSED CHALLENGE! (can optimize by stopping early)
+-------------------------------------
+-||-
+first layer: 16
+hidden1: 32
+hidden2: None
+
+ax. average running reward: ~72
+-------------------------------------
+-||-
+first layer: 32
+hidden1: 32
+hidden2: 64
+
+ax. average running reward: ~22
+-------------------------------------
+-||-
+first layer: 8
+hidden1: 48
+hidden2: 64
+
+max. average running reward: ~36
+-------------------------------------
+-||-
+first layer: 16
+hidden1: 32
+hidden2: 64
+
+max. average running reward: 45
+-------------------------------------
+-||-
+first layer: 32
+hidden1: 64
+hidden2: 96
+
+max. average running reward: 13
+-------------------------------------
+-||-
+first layer: 16
+hidden1: 32
+hidden2: 32
+
+max. average running reward: 13
+-------------------------------------
+-||-
+first layer: 8
+hidden1: 64
+hidden2: 96
+
+bad
+-------------------------------------
+-||-
+first layer: 8
+hidden1: 16
+hidden2: 24
+
+bad
+-------------------------------------
+-||-
+first layer: 8
+hidden1: 96
+hidden2: 24
+
+bad
+-------------------------------------
+-||-
+first layer: 16
+hidden1: 48
+hidden2: 96
+
+bad
+-------------------------------------
+-||-
+first layer: 16
+hidden1: 32
+hidden2: 48
+
+bad
+-------------------------------------
