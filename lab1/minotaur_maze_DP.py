@@ -33,10 +33,10 @@ class Maze:
     }
 
     # Reward values
-    STEP_REWARD = -1
-    GOAL_REWARD = 10
+    STEP_REWARD = 0
+    GOAL_REWARD = 1 # 5 -> 49.3%, 15 -> 39%
     IMPOSSIBLE_REWARD = -100
-    CAUGHT_REWARD = -100
+    CAUGHT_REWARD = 0
 
 
     def __init__(self, maze, weights=None, random_rewards=False):
@@ -82,6 +82,12 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
+         # if caught or exited
+        is_caught = self.states[state][0:2] == self.states[state][2:4]
+        exited_maze = self.states[state][0:2] == (6,5)
+        if exited_maze or is_caught:
+            return state
+
         # Compute the future position given current (state, action)
         row = self.states[state][0] + self.actions[action][0];
         col = self.states[state][1] + self.actions[action][1];
@@ -135,12 +141,17 @@ class Maze:
                 minotaur_in_edge = (self.states[next_s][2] == 0) or (self.states[next_s][2] == self.maze.shape[0] - 1) or \
                                    (self.states[next_s][3] == 0) or (self.states[next_s][3] == self.maze.shape[1] - 1)
 
-                if minotaur_in_corner:
-                    transition_probabilities[next_s, s, a] = 0.5;
+                is_caught = self.states[s][0:2] == self.states[s][2:4]
+                exited_maze = self.states[s][0:2] == (6, 5)
+
+                if is_caught or exited_maze:
+                    transition_probabilities[next_s, s, a] = 1
+                elif minotaur_in_corner:
+                    transition_probabilities[next_s, s, a] = 1/2;
                 elif minotaur_in_edge:
                     transition_probabilities[next_s, s, a] = 1/3;
                 else:
-                    transition_probabilities[next_s, s, a] = 0.25;
+                    transition_probabilities[next_s, s, a] = 1/4;
 
         return transition_probabilities;
 
@@ -148,42 +159,25 @@ class Maze:
 
         rewards = np.zeros((self.n_states, self.n_actions));
 
-        # If the rewards are not described by a weight matrix
-        if weights is None:
-            for s in range(self.n_states):
-                for a in range(self.n_actions):
-                    next_s = self.__move(s,a);
-                    # Reward for hitting a wall
-                    s == next_s
-                    if self.states[s][0:2] == self.states[next_s][0:2] and a != self.STAY:
-                        rewards[s,a] = self.IMPOSSIBLE_REWARD;
-                    # Reward for reaching the exit
-                    elif self.states[s][0:2] == self.states[next_s][0:2] and self.maze[self.states[next_s][0:2]] == 2:
-                        rewards[s,a] = self.GOAL_REWARD;
-                    # Reward for being caught by minotaur
-                    elif self.states[next_s][0:2] == self.states[next_s][2:]:
-                        rewards[s,a] = self.CAUGHT_REWARD;
-                    # Reward for taking a step to an empty cell that is not the exit
-                    else:
-                        rewards[s,a] = self.STEP_REWARD;
+        for s in range(self.n_states):
+            for a in range(self.n_actions):
+                next_s = self.__move(s,a);
 
-                    # If there exists trapped cells with probability 0.5
-                    if random_rewards and self.maze[self.states[next_s]]<0:
-                        row, col = self.states[next_s];
-                        # With probability 0.5 the reward is
-                        r1 = (1 + abs(self.maze[row, col])) * rewards[s,a];
-                        # With probability 0.5 the reward is
-                        r2 = rewards[s,a];
-                        # The average reward
-                        rewards[s,a] = 0.5*r1 + 0.5*r2;
-        # If the weights are descrobed by a weight matrix
-        else:
-            for s in range(self.n_states):
-                 for a in range(self.n_actions):
-                     next_s = self.__move(s,a);
-                     i,j = self.states[next_s];
-                     # Simply put the reward as the weights o the next state.
-                     rewards[s,a] = weights[i][j];
+                is_caught = self.states[s][0:2] == self.states[s][2:4]
+                exited_maze = self.states[s][0:2] == (6, 5)
+                
+                # Reward for hitting a wall
+                if self.states[s][0:2] == self.states[next_s][0:2] and a != self.STAY and not is_caught and not exited_maze:
+                    rewards[s,a] = self.IMPOSSIBLE_REWARD;
+                # Reward for being caught by minotaur
+                elif is_caught:
+                    rewards[s,a] = self.CAUGHT_REWARD;
+                # Reward for reaching the exit
+                elif exited_maze:
+                    rewards[s,a] = self.GOAL_REWARD;
+                # Reward for taking a step to an empty cell that is not the exit
+                else:
+                    rewards[s,a] = self.STEP_REWARD;
 
         return rewards;
 
