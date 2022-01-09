@@ -37,22 +37,6 @@ class NeuralNetwork(nn.Module):
     def forward(self, x):
         return self.network(x)
 
-class NeuralNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
-        super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(8, 16),
-            nn.ReLU(),
-            nn.Linear(16, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 4),
-        )
-
-    def forward(self, x):
-        return self.network(x)
-
 def running_average(x, N):
     ''' Function used to compute the running average
         of the last N elements of a vector x
@@ -66,7 +50,7 @@ def running_average(x, N):
 
 # Load model
 try:
-    model = torch.load('D:\study-R.D.Silva\EL2805 RL\EL2805_reinforcement_learning\lab2\problem1\model5-600epc.pt')
+    model = torch.load('F:\VScode projects\EL2805_reinforcement_learning\lab2\problem1\model5-600epc.pt')
     print('Network model: {}'.format(model))
 except:
     print('File neural-network-5.pth not found!')
@@ -91,8 +75,10 @@ for i in EPISODES:
     # Reset enviroment data
     done = False
     state = env.reset()
+    print("state: ", state)
     total_episode_reward = 0.
     while not done:
+        env.render()
         # Get next state and reward.  The done variable
         # will be True if you reached the goal position,
         # False otherwise

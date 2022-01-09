@@ -33,11 +33,10 @@ class Maze:
     }
 
     # Reward values
-    STEP_REWARD = 0
-    GOAL_REWARD = 1
+    STEP_REWARD = -1
+    GOAL_REWARD = 0 # 5 -> 49.3%, 15 -> 39%
     IMPOSSIBLE_REWARD = -100
-    CAUGHT_REWARD = 0
-    DEAD_REWARD = 0
+    CAUGHT_REWARD = -100
 
 
     def __init__(self, maze, weights=None, random_rewards=False):
@@ -71,10 +70,9 @@ class Maze:
                 if self.maze[i,j] != 1:
                     for m in range(self.maze.shape[0]):
                         for n in range(self.maze.shape[1]):
-                            for alive in range(2):
-                                states[s] = (i, j, m, n, alive);
-                                map[(i,j, m, n, alive)] = s;
-                                s += 1;
+                            states[s] = (i, j, m, n);
+                            map[(i,j, m, n)] = s;
+                            s += 1;
 
         return states, map
 
@@ -84,15 +82,11 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
-         # if caught or exited
+        # if caught or exited
         is_caught = self.states[state][0:2] == self.states[state][2:4]
         exited_maze = self.states[state][0:2] == (6,5)
         if exited_maze or is_caught:
             return state
-
-        # if dies from poison
-        if np.random.rand() < 1/31 or not self.states[state][-1]: # player expected to die with mean t = 30
-            return self.map[(self.states[state][0], self.states[state][1], self.states[state][2], self.states[state][3], 0)]
 
         # Compute the future position given current (state, action)
         row = self.states[state][0] + self.actions[action][0];
@@ -100,8 +94,9 @@ class Maze:
 
         minotaur_maze_walls = True
         while minotaur_maze_walls:
-            a = np.random.randint(low=0, high=4)
-            b = [[-1, 0], [1, 0], [0, 1], [0, -1]]
+            a = np.random.randint(low=0, high=5)
+            #b = [[-1, 0], [1, 0], [0, 1], [0, -1]]
+            b = [[-1, 0], [1, 0], [0, 1], [0, -1], [0, 0]]
 
             next_minotaur_row = self.states[state][2] + b[a][0]
             next_minotaur_col = self.states[state][3] + b[a][1]
@@ -117,12 +112,12 @@ class Maze:
         hitting_maze_walls =  (row == -1) or (row == self.maze.shape[0]) or \
                               (col == -1) or (col == self.maze.shape[1]) or \
                               (self.maze[row,col] == 1);
-            
+
         # Based on the impossiblity check return the next state.
-        if hitting_maze_walls or not self.states[state][-1]: # if move in wall or dead
-            return self.map[(self.states[state][0], self.states[state][1], minotaur_row, minotaur_col, 1)]
+        if hitting_maze_walls:
+            return self.map[(self.states[state][0], self.states[state][1], minotaur_row, minotaur_col)]
         else:
-            return self.map[(row, col, minotaur_row, minotaur_col, 1)];
+            return self.map[(row, col, minotaur_row, minotaur_col)];
 
     def __transitions(self):
         """ Computes the transition probabilities for every state action pair.
@@ -147,18 +142,17 @@ class Maze:
                 minotaur_in_edge = (self.states[next_s][2] == 0) or (self.states[next_s][2] == self.maze.shape[0] - 1) or \
                                    (self.states[next_s][3] == 0) or (self.states[next_s][3] == self.maze.shape[1] - 1)
 
-
                 is_caught = self.states[s][0:2] == self.states[s][2:4]
                 exited_maze = self.states[s][0:2] == (6, 5)
 
-                if is_caught or exited_maze or not self.states[s][4]:
+                if is_caught or exited_maze:
                     transition_probabilities[next_s, s, a] = 1
                 elif minotaur_in_corner:
-                    transition_probabilities[next_s, s, a] = 0.5;
+                    transition_probabilities[next_s, s, a] = 1/2;
                 elif minotaur_in_edge:
                     transition_probabilities[next_s, s, a] = 1/3;
                 else:
-                    transition_probabilities[next_s, s, a] = 0.25;
+                    transition_probabilities[next_s, s, a] = 1/4;
 
         return transition_probabilities;
 
@@ -166,17 +160,13 @@ class Maze:
 
         rewards = np.zeros((self.n_states, self.n_actions));
 
-        # If the rewards are not described by a weight matrix
         for s in range(self.n_states):
             for a in range(self.n_actions):
                 next_s = self.__move(s,a);
 
                 is_caught = self.states[s][0:2] == self.states[s][2:4]
                 exited_maze = self.states[s][0:2] == (6, 5)
-
-                # # Reward for being dead
-                # if not self.states[next_s][4]:
-                #     rewards[s,a] = self.DEAD_REWARD
+                
                 # Reward for hitting a wall
                 if self.states[s][0:2] == self.states[next_s][0:2] and a != self.STAY and not is_caught and not exited_maze:
                     rewards[s,a] = self.IMPOSSIBLE_REWARD;
@@ -251,7 +241,6 @@ class Maze:
         print(self.map)
         print('The rewards:')
         print(self.rewards)
-
 
 def value_iteration(env, gamma, epsilon):
     """ Solves the shortest path problem using value iteration
@@ -348,3 +337,4 @@ def draw_maze(maze):
     for cell in tc:
         cell.set_height(1.0/rows);
         cell.set_width(1.0/cols);
+

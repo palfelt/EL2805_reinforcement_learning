@@ -36,7 +36,7 @@ class Maze:
     STEP_REWARD = 0
     GOAL_REWARD = 1 # 5 -> 49.3%, 15 -> 39%
     IMPOSSIBLE_REWARD = -100
-    CAUGHT_REWARD = 0
+    CAUGHT_REWARD = -1
 
 
     def __init__(self, maze, weights=None, random_rewards=False):
@@ -82,7 +82,7 @@ class Maze:
 
             :return tuple next_cell: Position (x,y) on the maze that agent transitions to.
         """
-         # if caught or exited
+        # if caught or exited
         is_caught = self.states[state][0:2] == self.states[state][2:4]
         exited_maze = self.states[state][0:2] == (6,5)
         if exited_maze or is_caught:
@@ -94,8 +94,9 @@ class Maze:
 
         minotaur_maze_walls = True
         while minotaur_maze_walls:
-            a = np.random.randint(low=0, high=4)
-            b = [[-1, 0], [1, 0], [0, 1], [0, -1]]
+            a = np.random.randint(low=0, high=5)
+            #b = [[-1, 0], [1, 0], [0, 1], [0, -1]]
+            b = [[-1, 0], [1, 0], [0, 1], [0, -1], [0, 0]]
 
             next_minotaur_row = self.states[state][2] + b[a][0]
             next_minotaur_col = self.states[state][3] + b[a][1]

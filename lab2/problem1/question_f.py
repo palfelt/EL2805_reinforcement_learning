@@ -45,6 +45,7 @@ for iy, ix in np.ndindex(q_values.shape):
 
 fig = plt.figure()
 ax = plt.axes(projection='3d')
+
 surf = ax.plot_surface(yv, wv, q_values, cmap='hot')
 ax.set_xlabel('$y$')
 ax.set_ylabel('$\omega$')

@@ -1,9 +1,10 @@
 from matplotlib.patches import FancyArrow
 import numpy as np
-# import minotaur_maze_VI as mz 
+#import minotaur_maze_VI as mz 
 #import minotaur_maze_DP as mz
 #import minotaur_maze_Q as mz
-import minotaur_maze_SARSA as mz
+#import minotaur_maze_SARSA as mz
+import minotaur_maze_VI_new as mz
 import matplotlib.pyplot as plt
 
 # Description of the maze as a numpy array
@@ -35,53 +36,63 @@ env = mz.Maze(maze)
 #     prob[T] = count / n_sim
 #     print(prob[T])
     
+# np.savetxt('exit_prob_DP_standstill.txt', prob)
 
-# np.savetxt('exit_prob_DP.txt', prob)
+# exit_prob_1 = np.genfromtxt('exit_prob_DP.txt')
+# exit_prob_2 = np.genfromtxt('exit_prob_DP_standstill.txt')
+# plt.plot(exit_prob_1, label='Stand still = FALSE')
+# plt.plot(exit_prob_2, label='Stand still = TRUE')
+# plt.xlabel('T')
+# plt.ylabel('Exit probability')
+# plt.legend()
+# plt.grid()
+# plt.show()
 
 # --- Value iteration ---
 
-# method = 'ValIter'
-# # Discount Factor
-# gamma   = 0.95; 
-# # Accuracy treshold 
-# epsilon = 0.0001;
-# start  = (0,0,6,5,1)
-# n_sim = 10000
-# n_exits = 0
-# V, policy = mz.value_iteration(env, gamma, epsilon)
-# for i in range(1, n_sim + 1):
-
-#     if i % 1000 == 0: 
-#         print('i = {}'.format(i))
-
-#     path = env.simulate(start, policy, method)
-#     if path[-1][0:2] == (6, 5): # if the player exited the maze
-#         n_exits += 1
-
-# prob = n_exits / i
-# print("Probability of exiting the maze: " + str(prob))
-
-
-method = 'SARSA'
-start  = (0,0,6,5,1,0)
+method = 'ValIter'
+# Discount Factor
+gamma = 1 - 1/30
+# Accuracy treshold 
+epsilon = 0.0001;
+start  = (0,0,6,5)
+n_sim = 100000
 n_exits = 0
-policy, V_episode = mz.sarsa(env, eps=0.1, n_episodes=50000, gamma=0.95)
-# plt.plot(V_episode)
-# plt.show()
-# print(V_episode[-1])
-n_sim = 500000
+V, policy = mz.value_iteration(env, gamma, epsilon)
 for i in range(1, n_sim + 1):
 
-    if i % 5000 == 0: 
+    if i % 10000 == 0: 
         print('i = {}'.format(i))
 
     path = env.simulate(start, policy, method)
     if path[-1][0:2] == (6, 5): # if the player exited the maze
         n_exits += 1
 
-print(path)
 prob = n_exits / i
 print("Probability of exiting the maze: " + str(prob))
+
+
+# method = 'SARSA'
+# start  = (0,0,6,5,1,0)
+# n_exits = 0
+# policy, V_episode = mz.sarsa(env, eps=0.1, n_episodes=50000, gamma=0.95)
+# plt.plot(V_episode)
+# plt.show()
+# # print(V_episode[-1])
+# n_sim = 10000
+# for i in range(1, n_sim + 1):
+
+#     if i % 1000 == 0: 
+#         print('i = {}'.format(i))
+
+#     path = env.simulate(start, policy, method)
+
+#     if path[-1][0:2] == (6, 5): # if the player exited the maze
+#         n_exits += 1
+
+# print(path)
+# prob = n_exits / i
+# print("Probability of exiting the maze: " + str(prob))
 
 
 # method = 'Q-learning'
